@@ -27,6 +27,29 @@ misma disciplina sin que tengas que orquestarlos desde fuera.
   ligado a una huella del diff actual (`git diff HEAD` + `git status
   --porcelain`) para que una aprobación no sirva si el código vuelve a
   cambiar.
+- **Checks deterministas (`.renkei/checks.json`)** — antes de invocar al
+  revisor LLM (que cuesta tokens y no es determinista), Renkei detecta si el
+  `package.json` del proyecto destino tiene scripts `lint`, `test`, `build`
+  o `typecheck` y los guarda como comandos a correr primero. En Claude Code,
+  el hook `Stop` los ejecuta antes de mirar siquiera `.renkei/review.json`:
+  si alguno falla, bloquea el turno de inmediato con la salida del comando,
+  sin gastar una ronda de revisión. En opencode esto también se genera (por
+  si se quiere invocar manualmente o desde una convención en `AGENTS.md`),
+  pero no hay un hook que lo fuerce.
+- **Guardrails ("sandbox-lite")** — una lista de patrones de comandos Bash
+  claramente destructivos (`rm -rf /`, force-push a `main`/`master`,
+  `curl | sh`, `mkfs`, `dd` a un device, fork bombs, `chmod -R 777 /`,
+  `sudo rm -rf`, etc.).
+  - En **Claude Code** es un hook `PreToolUse` real
+    (`.claude/hooks/renkei-guardrails.mjs`, filtrado a la tool `Bash`) que
+    bloquea (`exit 2`) la llamada si el comando matchea el deny-list.
+  - En **opencode** se traduce a patrones en el `permission.bash` de nivel
+    superior de `opencode.json`.
+  - **Importante**: esto no es un sandbox ni una barrera de seguridad real.
+    Es un matching pragmático por substring/regex sobre un puñado de
+    patrones conocidos, pensado para frenar accidentes, no para contener a
+    un atacante. Se puede evitar trivialmente y no reemplaza la prudencia
+    del propio agente ni del desarrollador.
 
 ## Uso
 

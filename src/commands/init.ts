@@ -3,8 +3,10 @@ import { detectTargets, type DetectionResult } from "../detect.js";
 import { upsertAgentsMdSection } from "../generators/agentsMd.js";
 import { ensureRenkeiGitignore } from "../generators/gitignore.js";
 import { writeApproveScript } from "../generators/scripts.js";
+import { generateChecksConfig } from "../generators/checks.js";
 import { generateClaudeReviewer } from "../generators/claudeReviewer.js";
 import { generateOpencodeReviewer } from "../generators/opencodeReviewer.js";
+import { generateClaudeGuardrails, generateOpencodeGuardrails } from "../generators/guardrails.js";
 import type { WriteResult } from "../fsUtils.js";
 
 export interface InitOptions {
@@ -32,12 +34,15 @@ export function runInit(options: InitOptions = {}): InitReport {
   results.push(upsertAgentsMdSection(projectDir));
   results.push(ensureRenkeiGitignore(projectDir));
   results.push(writeApproveScript(projectDir));
+  results.push(generateChecksConfig(projectDir));
 
   if (targets.claude) {
     results.push(...generateClaudeReviewer(projectDir));
+    results.push(...generateClaudeGuardrails(projectDir));
   }
   if (targets.opencode) {
     results.push(...generateOpencodeReviewer(projectDir));
+    results.push(generateOpencodeGuardrails(projectDir));
   }
 
   return { projectDir, targets, results };

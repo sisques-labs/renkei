@@ -58,24 +58,42 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-export function mergeClaudeStopHook(settingsPath: string, hookCommand: string, timeout = 60): WriteResult {
+export interface MergeClaudeHookOptions {
+  matcher?: string;
+  timeout?: number;
+}
+
+export function mergeClaudeHook(
+  settingsPath: string,
+  event: string,
+  hookCommand: string,
+  opts: MergeClaudeHookOptions = {},
+): WriteResult {
+  const { matcher, timeout = 60 } = opts;
   const settings: ClaudeSettings = readJsonFile<ClaudeSettings>(settingsPath) ?? {};
   settings.hooks ??= {};
-  settings.hooks.Stop ??= [];
+  settings.hooks[event] ??= [];
+  const groups = settings.hooks[event];
 
-  const alreadyPresent = settings.hooks.Stop.some((group) =>
-    group.hooks?.some((handler) => handler.command === hookCommand),
+  const alreadyPresent = groups.some(
+    (group) => group.hooks?.some((handler) => handler.command === hookCommand),
   );
 
   if (alreadyPresent) {
     return { action: "unchanged", path: settingsPath };
   }
 
-  settings.hooks.Stop.push({
-    hooks: [{ type: "command", command: hookCommand, timeout }],
-  });
+  const newGroup: ClaudeHookGroup = { hooks: [{ type: "command", command: hookCommand, timeout }] };
+  if (matcher !== undefined) {
+    newGroup.matcher = matcher;
+  }
+  groups.push(newGroup);
 
   return writeJsonFile(settingsPath, settings);
+}
+
+export function mergeClaudeStopHook(settingsPath: string, hookCommand: string, timeout = 60): WriteResult {
+  return mergeClaudeHook(settingsPath, "Stop", hookCommand, { timeout });
 }
 
 interface OpencodeAgentDef {
@@ -83,8 +101,14 @@ interface OpencodeAgentDef {
   [key: string]: unknown;
 }
 
+interface OpencodePermission {
+  bash?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 interface OpencodeConfig {
   agent?: Record<string, OpencodeAgentDef>;
+  permission?: OpencodePermission;
   [key: string]: unknown;
 }
 
@@ -98,5 +122,32 @@ export function mergeOpencodeAgent(configPath: string, agentName: string, agentD
   }
 
   config.agent[agentName] = agentDef;
+  return writeJsonFile(configPath, config);
+}
+
+// Merges deny/allow patterns into opencode.json's top-level permission.bash map.
+// Only fills in patterns that are not already present (by key) so a user's own
+// customizations to an existing pattern are never clobbered; re-running is a no-op.
+export function mergeOpencodeBashPermission(
+  configPath: string,
+  patterns: Record<string, string>,
+): WriteResult {
+  const config: OpencodeConfig = readJsonFile<OpencodeConfig>(configPath) ?? {};
+  config.permission ??= {};
+  config.permission.bash ??= {};
+  const bash = config.permission.bash;
+
+  let changed = false;
+  for (const [pattern, decision] of Object.entries(patterns)) {
+    if (!(pattern in bash)) {
+      bash[pattern] = decision;
+      changed = true;
+    }
+  }
+
+  if (!changed) {
+    return { action: "unchanged", path: configPath };
+  }
+
   return writeJsonFile(configPath, config);
 }
