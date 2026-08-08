@@ -19,6 +19,21 @@ review your diff and approve it:
 In Claude Code this is enforced automatically by a Stop hook. In opencode this is a
 convention the primary agent must follow explicitly, since opencode does not yet
 expose an equivalent hard gate.
+
+## Project memory
+
+\`.renkei/memory.md\` is durable, git-committed project knowledge that survives across
+sessions and context resets. Consult it before starting non-trivial work. Append a
+short entry when you make an architectural decision, hit a non-obvious gotcha, or
+establish a convention worth remembering. Don't remove existing entries unless they
+no longer apply -- it's a cumulative log, not a scratchpad.
+
+## Task state externalization
+
+For work that touches several files or spans multiple steps, keep \`.renkei/state.json\`
+updated with the current task, a short plan, and progress so far. This lets the work
+resume cleanly after a context reset/compaction or from a fresh session, instead of
+having to re-derive everything from scratch.
 ${END}`;
 
 export function upsertAgentsMdSection(projectDir: string): WriteResult {

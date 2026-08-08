@@ -78,6 +78,27 @@ export function mergeClaudeStopHook(settingsPath: string, hookCommand: string, t
   return writeJsonFile(settingsPath, settings);
 }
 
+export function mergeClaudePreCompactHook(settingsPath: string, hookCommand: string, timeout = 10): WriteResult {
+  const settings: ClaudeSettings = readJsonFile<ClaudeSettings>(settingsPath) ?? {};
+  settings.hooks ??= {};
+  settings.hooks.PreCompact ??= [];
+
+  const alreadyPresent = settings.hooks.PreCompact.some((group) =>
+    group.hooks?.some((handler) => handler.command === hookCommand),
+  );
+
+  if (alreadyPresent) {
+    return { action: "unchanged", path: settingsPath };
+  }
+
+  // No matcher: fires for both "manual" (/compact) and "auto" (context-window-full) triggers.
+  settings.hooks.PreCompact.push({
+    hooks: [{ type: "command", command: hookCommand, timeout }],
+  });
+
+  return writeJsonFile(settingsPath, settings);
+}
+
 interface OpencodeAgentDef {
   mode: "primary" | "subagent" | "all";
   [key: string]: unknown;
