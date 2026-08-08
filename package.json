@@ -1,0 +1,28 @@
+{
+  "name": "renkei",
+  "version": "0.1.0",
+  "description": "Agent harness that installs a shared cross-review gate and coordination conventions into Claude Code and opencode projects.",
+  "type": "module",
+  "bin": {
+    "renkei": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
