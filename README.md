@@ -27,6 +27,26 @@ misma disciplina sin que tengas que orquestarlos desde fuera.
   ligado a una huella del diff actual (`git diff HEAD` + `git status
   --porcelain`) para que una aprobación no sirva si el código vuelve a
   cambiar.
+- **`.renkei/memory.md`** — memoria persistente del proyecto: un archivo
+  markdown de bajo nivel tecnológico (sin base de datos ni índice de
+  búsqueda) pensado para que tanto Claude Code como opencode lo lean y
+  editen con sus herramientas normales de archivo. Se crea una vez con unas
+  secciones de partida (decisiones de arquitectura, convenciones, errores
+  conocidos) y `renkei init` nunca vuelve a tocarlo — es el propio agente
+  quien va añadiendo entradas con el tiempo. Se commitea junto al resto del
+  proyecto.
+- **`.renkei/state.json`** — externalización del estado de la tarea en
+  curso (`currentTask`, `plan`, `progress`, `updatedAt`), para que un
+  agente pueda retomar un trabajo largo o multi-paso tras un reseteo o
+  compactación de contexto, o desde una sesión nueva, sin tener que
+  re-derivar todo desde cero. Igual que `memory.md`, se crea una sola vez
+  con contenido por defecto y `renkei init` no lo vuelve a sobrescribir; es
+  estado efímero de trabajo, así que se ignora en git.
+  - Claude Code además recibe un hook `PreCompact`
+    (`.claude/hooks/renkei-precompact-reminder.mjs`) que, antes de que el
+    contexto se compacte, imprime un recordatorio para mantener
+    `state.json` al día. Es puramente informativo: nunca bloquea la
+    compactación (ver "Limitaciones conocidas").
 
 ## Uso
 
@@ -59,3 +79,13 @@ npm run build   # compila src/ -> dist/
   estado en `git status` (caso raro) no invalidaría una aprobación previa.
 - Requiere que el proyecto sea un repositorio git; si no lo es, el gate de
   Claude Code no bloquea nada (no hay nada que pueda inspeccionar).
+- Que `.renkei/state.json` se mantenga al día es una convención que debe
+  seguir el propio agente, no algo que Renkei pueda forzar. El hook
+  `PreCompact` de Claude Code solo imprime un recordatorio antes de
+  compactar; según la documentación de hooks, `PreCompact` sí puede
+  bloquear la compactación (`exit 2`), pero bloquear una compactación
+  automática que está recuperándose de un error de límite de contexto ya
+  devuelto por la API hace que ese error se propague y la petición falle,
+  y aunque bloqueara sin ese riesgo, el mensaje solo se le muestra al
+  usuario, no llega al modelo. Por eso el hook nunca bloquea (siempre
+  `exit 0`) y es puramente informativo.
