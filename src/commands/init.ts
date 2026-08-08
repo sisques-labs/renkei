@@ -3,11 +3,13 @@ import { detectTargets, type DetectionResult } from "../detect.js";
 import { upsertAgentsMdSection } from "../generators/agentsMd.js";
 import { ensureRenkeiGitignore } from "../generators/gitignore.js";
 import { writeApproveScript } from "../generators/scripts.js";
+import { generateChecksConfig } from "../generators/checks.js";
 import { generateClaudeReviewer } from "../generators/claudeReviewer.js";
 import { generateOpencodeReviewer } from "../generators/opencodeReviewer.js";
 import { generateMemoryFile } from "../generators/memory.js";
 import { generateStateFile } from "../generators/state.js";
 import { generatePreCompactHook } from "../generators/precompact.js";
+import { generateClaudeGuardrails, generateOpencodeGuardrails } from "../generators/guardrails.js";
 import type { WriteResult } from "../fsUtils.js";
 
 export interface InitOptions {
@@ -37,13 +39,16 @@ export function runInit(options: InitOptions = {}): InitReport {
   results.push(writeApproveScript(projectDir));
   results.push(generateMemoryFile(projectDir));
   results.push(generateStateFile(projectDir));
+  results.push(generateChecksConfig(projectDir));
 
   if (targets.claude) {
     results.push(...generateClaudeReviewer(projectDir));
     results.push(...generatePreCompactHook(projectDir));
+    results.push(...generateClaudeGuardrails(projectDir));
   }
   if (targets.opencode) {
     results.push(...generateOpencodeReviewer(projectDir));
+    results.push(generateOpencodeGuardrails(projectDir));
   }
 
   return { projectDir, targets, results };

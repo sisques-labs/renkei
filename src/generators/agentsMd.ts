@@ -20,6 +20,12 @@ In Claude Code this is enforced automatically by a Stop hook. In opencode this i
 convention the primary agent must follow explicitly, since opencode does not yet
 expose an equivalent hard gate.
 
+Before invoking \`renkei-reviewer\`, deterministic checks (lint/test/build, from
+\`.renkei/checks.json\`) run first and block on failure, so review rounds aren't
+spent on problems a script could have caught. Separately, a small guardrail
+blocks a handful of clearly destructive Bash patterns (e.g. \`rm -rf /\`, force
+push to main); it is not a sandbox or a substitute for care.
+
 ## Project memory
 
 \`.renkei/memory.md\` is durable, git-committed project knowledge that survives across

@@ -12,6 +12,49 @@ function run(cmd) {
   return execSync(cmd, { cwd: projectDir, encoding: "utf8", maxBuffer: 1024 * 1024 * 64 });
 }
 
+// Deterministic checks (lint/test/build/typecheck) run first: cheap, free, and
+// deterministic, unlike invoking the renkei-reviewer subagent. If any of them
+// fail, block immediately without even looking at .renkei/review.json.
+function tail(text, maxLen = 2000) {
+  if (text.length <= maxLen) return text;
+  return `...(truncated)...\n${text.slice(-maxLen)}`;
+}
+
+function runChecks() {
+  const checksPath = join(projectDir, ".renkei", "checks.json");
+  if (!existsSync(checksPath)) return;
+
+  let checks;
+  try {
+    checks = JSON.parse(readFileSync(checksPath, "utf8"));
+  } catch {
+    // Malformed checks.json: don't block on our own config being broken.
+    return;
+  }
+
+  const commands = Array.isArray(checks?.commands) ? checks.commands : [];
+  if (commands.length === 0) return;
+
+  for (const cmd of commands) {
+    try {
+      execSync(cmd, {
+        cwd: projectDir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        maxBuffer: 1024 * 1024 * 64,
+      });
+    } catch (err) {
+      const output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
+      console.error(
+        `Renkei: deterministic check failed: \`${cmd}\`\n` +
+          `${tail(output)}\n\n` +
+          "Fix this before requesting a renkei-reviewer round.",
+      );
+      process.exit(2);
+    }
+  }
+}
+
 function statusIgnoringRenkeiState(raw) {
   return raw
     .split("\n")
@@ -30,9 +73,15 @@ try {
 }
 
 if (diff.trim() === "" && status.trim() === "") {
-  // No pending changes at all, nothing for renkei-reviewer to look at.
+  // No pending changes at all, nothing for renkei-reviewer to look at, and
+  // nothing new for the deterministic checks to validate either.
   process.exit(0);
 }
+
+// Only run lint/test/build once we know there's an actual diff to gate --
+// running them on every single Stop even with a clean tree would be wasteful
+// and could block on pre-existing, unrelated failures.
+runChecks();
 
 const currentHash = createHash("sha256").update(diff).update(" ").update(status).digest("hex");
 const reviewPath = join(projectDir, ".renkei", "review.json");
